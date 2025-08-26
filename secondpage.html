@@ -1,12 +1,440 @@
-<html>
-  <head>
-    <title>Title of the Linked Page</title>
-  </head>
-  <body>
-    <a href="index.html"><img src="logo.png"></a>
-    <h1>Another Page</h1>
-    <p>This is another page.</p>
-    <h2>Sub-Heading</h2>
-    <p>This is a section.</p>
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>How Well Do You Know Your Favorite Movie?</title>
+  <style>
+    :root{
+      --bg:#C6B0A3; /* requested background */
+      --ink:#1e1b18;
+      --panel: #f6efe9;
+      --accent: #3a2f2a;
+      --ok:#1b8f3b;
+      --warn:#b65b00;
+      --bad:#b00020;
+    }
+
+    /* Base */
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--ink);
+      background: var(--bg);
+      display:flex; align-items:center; justify-content:center;
+    }
+
+    .container{
+      width:min(960px, 92vw);
+      background: var(--panel);
+      border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.15);
+      overflow:hidden;
+    }
+
+    header{
+      background: linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,0));
+      padding: 28px clamp(18px, 5vw, 40px);
+    }
+    header h1{
+      margin:0 0 6px; font-size: clamp(22px, 3.2vw, 34px);
+    }
+    header p{margin:6px 0 0; opacity:.8}
+
+    main{padding: clamp(18px, 5vw, 36px)}
+
+    /* Cards / sections */
+    .card{
+      background:white; border:1px solid rgba(0,0,0,.06);
+      border-radius:16px; padding:20px; margin: 18px 0;
+      box-shadow: 0 3px 12px rgba(0,0,0,.06);
+    }
+
+    .actions{ display:flex; gap:12px; flex-wrap:wrap; margin-top:14px }
+    button, .btn{
+      appearance:none; border:none; cursor:pointer;
+      background: var(--accent); color:white; padding:12px 18px; border-radius:12px; font-weight:600;
+    }
+    button[disabled]{ opacity:.5; cursor:not-allowed }
+    .btn-secondary{ background: transparent; color: var(--accent); border:1.5px solid var(--accent) }
+
+    input[type="text"]{
+      width:100%; padding:12px 14px; border-radius:10px; border:1.5px solid #d5c9bf; background:#fff; font-size:16px
+    }
+    label{font-weight:600}
+
+    /* Movie grid */
+    .grid{ display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:14px }
+    .movie{
+      border:1.5px solid #e6ddd6; border-radius:14px; padding:14px;
+      display:flex; align-items:center; gap:12px; background:#fff; transition: transform .06s ease, border-color .2s ease;
+    }
+    .movie:hover{ transform: translateY(-2px) }
+    .movie input{ accent-color: var(--accent) }
+    .movie .title{ font-weight:700 }
+
+    /* Quiz */
+    .question{margin:16px 0 12px; font-weight:700}
+    .option{ display:flex; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:12px; margin:8px 0; background:#fff }
+    .option input{ accent-color: var(--accent) }
+
+    /* Result states after submit */
+    .correct{ border-color: rgba(27,143,59,.35); background: #f0faf2 }
+    .incorrect{ border-color: rgba(176,0,32,.35); background: #fff0f3 }
+
+    .result-banner{ border-radius:16px; padding:16px; font-weight:700 }
+    .result-ok{ background:#eaf7ee; color: var(--ok); border:1px solid rgba(27,143,59,.35) }
+    .result-mid{ background:#fff6e9; color: var(--warn); border:1px solid rgba(182,91,0,.35) }
+    .result-bad{ background:#ffedf0; color: var(--bad); border:1px solid rgba(176,0,32,.35) }
+
+    .hidden{ display:none }
+
+    footer{padding: 0 clamp(18px,5vw,36px) 28px; opacity:.7}
+  </style>
+</head>
+<body>
+  <div class="container" role="application" aria-label="Movie quiz app">
+    <header>
+      <h1>Hello, Welcome To The Movie/Series Quiz</h1>
+      <p>Test how well you really know your favorite movie.</p>
+    </header>
+
+    <main>
+      <!-- Step 1: Name form -->
+      <section id="step-name" class="card" aria-labelledby="name-title">
+        <h2 id="name-title">Please enter your name to start the quiz</h2>
+        <form id="name-form">
+          <label for="playerName">Your name</label>
+          <input id="playerName" name="playerName" type="text" placeholder="e.g., Alex" required />
+          <div class="actions">
+            <button type="submit">Start</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Step 2: Choose a favorite movie -->
+      <section id="step-pick" class="card hidden" aria-labelledby="pick-title">
+        <h2 id="pick-title">Choose your favorite movie</h2>
+        <p>Select one movie to be quizzed on.</p>
+        <div id="movie-grid" class="grid" role="list"></div>
+        <div class="actions">
+          <button id="to-quiz" disabled>Continue to quiz</button>
+          <button class="btn btn-secondary" id="back-to-name">Back</button>
+        </div>
+      </section>
+
+      <!-- Step 3: Quiz -->
+      <section id="step-quiz" class="card hidden" aria-labelledby="quiz-title">
+        <h2 id="quiz-title">Quiz: <span id="quiz-movie"></span></h2>
+        <form id="quiz-form"></form>
+        <div class="actions">
+          <button id="submit-answers">Submit Answers</button>
+          <button class="btn btn-secondary" id="back-to-pick">Back</button>
+        </div>
+      </section>
+
+      <!-- Step 4: Results -->
+      <section id="step-results" class="card hidden" aria-labelledby="results-title">
+        <h2 id="results-title">Your Results</h2>
+        <div id="result-banner" class="result-banner"></div>
+        <div id="explanations"></div>
+        <div class="actions">
+          <button id="restart">Play Again</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Made with HTML/CSS/JS · Single page, no libraries.</p>
+    </footer>
+  </div>
+
+  <script>
+    // --- Data: Movies & question banks (3 Qs each) ---
+    const MOVIES = [
+      {
+        id: 'matrix',
+        title: 'The Matrix (1999)',
+        questions: [
+          {
+            q: 'What color pill does Neo take?',
+            options: ['Green', 'Blue', 'Red', 'Yellow'],
+            answer: 2
+          },
+          {
+            q: 'Who is the creator of the Matrix in-universe?',
+            options: ['The Architect', 'The Oracle', 'Morpheus', 'Agent Smith'],
+            answer: 0
+          },
+          {
+            q: 'What is Neo\'s real-world name?',
+            options: ['Mr. Smith', 'Thomas Anderson', 'John Wick', 'Anderson Neo'],
+            answer: 1
+          }
+        ]
+      },
+      {
+        id: 'inception',
+        title: 'Inception (2010)',
+        questions: [
+          {
+            q: 'What object is Cobb\'s totem?',
+            options: ['Loaded die', 'Top', 'Coin', 'Chess piece'],
+            answer: 1
+          },
+          {
+            q: 'Who composes the film\'s score?',
+            options: ['Hans Zimmer', 'John Williams', 'Alan Silvestri', 'Ramin Djawadi'],
+            answer: 0
+          },
+          {
+            q: 'What is the name of the sedative chemist?',
+            options: ['Eames', 'Saito', 'Yusuf', 'Arthur'],
+            answer: 2
+          }
+        ]
+      },
+      {
+        id: 'blackpanther',
+        title: 'Black Panther (2018)',
+        questions: [
+          {
+            q: 'What is the name of the fictional African nation?',
+            options: ['Genosha', 'Wakanda', 'Latveria', 'Zamunda'],
+            answer: 1
+          },
+          {
+            q: 'Who challenges T\'Challa for the throne?',
+            options: ['M\'Baku', 'Killmonger', 'Ulysses Klaue', 'N\'Jadaka'],
+            answer: 1
+          },
+          {
+            q: 'What metal powers Wakandan technology?',
+            options: ['Adamantium', 'Vibranium', 'Palladium', 'Unobtanium'],
+            answer: 1
+          }
+        ]
+      },
+      {
+        id: 'titanic',
+        title: 'Titanic (1997)',
+        questions: [
+          {
+            q: 'What does Jack sketch Rose wearing?',
+            options: ['A hat', 'A necklace', 'A feather boa', 'A tiara'],
+            answer: 1
+          },
+          {
+            q: 'What hits the Titanic?',
+            options: ['Iceberg', 'Another ship', 'Whale', 'Rock'],
+            answer: 0
+          },
+          {
+            q: 'Who directed the film?',
+            options: ['Steven Spielberg', 'James Cameron', 'Peter Jackson', 'Ridley Scott'],
+            answer: 1
+          }
+        ]
+      },
+      {
+        id: 'lionking',
+        title: 'The Lion King (1994)',
+        questions: [
+          {
+            q: 'What is the name of Simba\'s father?',
+            options: ['Mufasa', 'Scar', 'Rafiki', 'Zazu'],
+            answer: 0
+          },
+          {
+            q: 'What phrase do Timon and Pumbaa teach Simba?',
+            options: ['Carpe Diem', 'Hakuna Matata', 'C\'est la vie', 'YOLO'],
+            answer: 1
+          },
+          {
+            q: 'Who throws Simba from Pride Rock in the climax?',
+            options: ['Hyenas', 'Scar', 'Mufasa', 'Nala'],
+            answer: 1
+          }
+        ]
+      }
+    ];
+
+    // --- State ---
+    let playerName = '';
+    let selectedMovie = null; // movie object
+
+    // --- Elements ---
+    const stepName = document.getElementById('step-name');
+    const stepPick = document.getElementById('step-pick');
+    const stepQuiz = document.getElementById('step-quiz');
+    const stepResults = document.getElementById('step-results');
+
+    const nameForm = document.getElementById('name-form');
+    const nameInput = document.getElementById('playerName');
+
+    const movieGrid = document.getElementById('movie-grid');
+    const toQuizBtn = document.getElementById('to-quiz');
+    const backToNameBtn = document.getElementById('back-to-name');
+
+    const quizTitleMovie = document.getElementById('quiz-movie');
+    const quizForm = document.getElementById('quiz-form');
+    const submitAnswersBtn = document.getElementById('submit-answers');
+    const backToPickBtn = document.getElementById('back-to-pick');
+
+    const resultBanner = document.getElementById('result-banner');
+    const explanations = document.getElementById('explanations');
+    const restartBtn = document.getElementById('restart');
+
+    // --- Helpers ---
+    const show = (el) => el.classList.remove('hidden');
+    const hide = (el) => el.classList.add('hidden');
+
+    function renderMovieGrid(){
+      movieGrid.innerHTML = '';
+      MOVIES.forEach(m =>{
+        const item = document.createElement('label');
+        item.className = 'movie';
+        item.role = 'listitem';
+        item.innerHTML = `
+          <input type="radio" name="moviePick" value="${m.id}" aria-label="${m.title}" />
+          <div>
+            <div class="title">${m.title}</div>
+            <div style="opacity:.75">${m.questions.length} questions</div>
+          </div>
+        `;
+        movieGrid.appendChild(item);
+      });
+
+      movieGrid.addEventListener('change', (e)=>{
+        if(e.target && e.target.name === 'moviePick'){
+          const id = e.target.value;
+          selectedMovie = MOVIES.find(mm => mm.id === id) || null;
+          toQuizBtn.disabled = !selectedMovie;
+        }
+      });
+    }
+
+    function renderQuiz(){
+      quizForm.innerHTML = '';
+      quizTitleMovie.textContent = selectedMovie.title;
+
+      selectedMovie.questions.forEach((q, idx)=>{
+        const fieldset = document.createElement('fieldset');
+        fieldset.className = 'qset';
+        const qId = `q_${idx}`;
+        fieldset.innerHTML = `<legend class="question">Q${idx+1}. ${q.q}</legend>`;
+
+        q.options.forEach((opt, i)=>{
+          const id = `${qId}_opt_${i}`;
+          const div = document.createElement('label');
+          div.className = 'option';
+          div.innerHTML = `
+            <input type="radio" name="${qId}" id="${id}" value="${i}">
+            <span>${opt}</span>
+          `;
+          fieldset.appendChild(div);
+        });
+
+        quizForm.appendChild(fieldset);
+      });
+    }
+
+    function gradeQuiz(){
+      const results = [];
+      let correctCount = 0;
+
+      selectedMovie.questions.forEach((q, idx)=>{
+        const qName = `q_${idx}`;
+        const chosen = quizForm.querySelector(`input[name="${qName}"]:checked`);
+        const chosenIdx = chosen ? Number(chosen.value) : -1;
+        const isCorrect = chosenIdx === q.answer;
+        results.push({ chosenIdx, isCorrect, q });
+        if(isCorrect) correctCount++;
+      });
+
+      // Decorate each option post-submit
+      quizForm.querySelectorAll('.option').forEach(el=>{
+        el.classList.remove('correct','incorrect');
+      });
+      results.forEach((r, idx)=>{
+        const qName = `q_${idx}`;
+        const options = quizForm.querySelectorAll(`input[name="${qName}"]`);
+        options.forEach((input, i)=>{
+          const optLabel = input.closest('.option');
+          if(i === r.q.answer){ optLabel.classList.add('correct'); }
+          else if(input.checked && i !== r.q.answer){ optLabel.classList.add('incorrect'); }
+        });
+      });
+
+      const total = selectedMovie.questions.length;
+      const half = Math.ceil(total/2);
+
+      // Final banner message per user spec
+      let bannerText = '';
+      let bannerClass = '';
+      if(correctCount === total){
+        bannerText = `Congratulations, ${playerName}! "${selectedMovie.title}" is truly your favorite movie.`;
+        bannerClass = 'result-ok';
+      } else if(correctCount >= half){
+        bannerText = `${playerName}, you got ${correctCount}/${total}. Maybe give "${selectedMovie.title}" another watch.`;
+        bannerClass = 'result-mid';
+      } else {
+        bannerText = `Oooh... ${playerName}, ${correctCount}/${total}. I don\'t think you\'ve watched "${selectedMovie.title}" closely at all.`;
+        bannerClass = 'result-bad';
+      }
+
+      resultBanner.className = `result-banner ${bannerClass}`;
+      resultBanner.textContent = bannerText;
+
+      // Explanations
+      explanations.innerHTML = '<h3>Answer key</h3>' + results.map((r, i)=>{
+        const correctText = r.q.options[r.q.answer];
+        const pickedText = r.chosenIdx >= 0 ? r.q.options[r.chosenIdx] : '<em>No answer chosen</em>';
+        return `<p><strong>Q${i+1}:</strong> ${r.q.q}<br/>Correct: <strong>${correctText}</strong><br/>You picked: ${pickedText}</p>`;
+      }).join('');
+
+      hide(stepQuiz); show(stepResults);
+    }
+
+    // --- Wiring ---
+    nameForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const val = nameInput.value.trim();
+      if(!val){ nameInput.focus(); return; }
+      playerName = val;
+      hide(stepName); show(stepPick);
+    });
+
+    backToNameBtn.addEventListener('click', ()=>{ show(stepName); hide(stepPick); });
+
+    toQuizBtn.addEventListener('click', ()=>{
+      if(!selectedMovie) return;
+      renderQuiz();
+      hide(stepPick); show(stepQuiz);
+    });
+
+    backToPickBtn.addEventListener('click', ()=>{ show(stepPick); hide(stepQuiz); });
+
+    submitAnswersBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
+      gradeQuiz();
+    });
+
+    restartBtn.addEventListener('click', ()=>{
+      // Reset to start
+      playerName = '';
+      selectedMovie = null;
+      nameForm.reset();
+      toQuizBtn.disabled = true;
+      show(stepName); hide(stepPick); hide(stepQuiz); hide(stepResults);
+      nameInput.focus();
+    });
+
+    // Init
+    renderMovieGrid();
+    nameInput.focus();
+  </script>
+</body>
 </html>
+
